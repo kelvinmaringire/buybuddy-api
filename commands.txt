@@ -66,8 +66,8 @@ mkdir -p ~/webapps
 cd ~/webapps
 
 # Clone your project
-sudo git clone https://github.com/kelvinmaringire/ruzivoflow-api.git
-cd ruzivoflow-api
+sudo git clone https://github.com/kelvinmaringire/buybuddy-api.git
+cd buybuddy-api
 
 # Add environment variables
 nano .env   # (paste your environment variables here)
@@ -146,7 +146,7 @@ pg_restore -U postgres -d ruzivoflow_db /var/lib/postgresql/data/data_backup.dum
 docker volume create certbot-etc
 docker volume create certbot-var
 ```
-docker compose run --rm certbot certonly --webroot --webroot-path /app/static -d databet.co.za
+docker compose run --rm certbot certonly --webroot --webroot-path /app/static -d buybuddysave.co.za
 
 ### Update `docker-compose.yml`
 

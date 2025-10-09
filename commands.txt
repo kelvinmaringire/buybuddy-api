@@ -1,200 +1,131 @@
-# 🚀 Wagtail + Docker + VPS Setup Commands
+######################################
+Start new project
+######################################
 
-This guide organizes your commands into a clear, step-by-step process with headings, emojis, and comments.
-
----
-
-## 🐳 1. Install Docker on VPS
-
-```bash
-# Update and install required packages
-sudo apt update && sudo apt install -y ca-certificates curl gnupg lsb-release
-
-# Add Docker’s official GPG key
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
-  sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
-
-# Add Docker repo
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
-  https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# Install Docker Engine, CLI, and Compose plugin
-sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-# Verify installation
-docker --version
-docker run hello-world
-```
-
----
-
-## 🔐 2. VPS Firewall Setup
-
-```bash
-# Update & upgrade system
-sudo apt update && sudo apt upgrade -y
-
-# Allow HTTP (port 80)
-sudo ufw allow 80/tcp
-
-# Allow HTTPS (port 443)
-sudo ufw allow 443/tcp
-
-# Allow SSH (port 22) - ⚠️ ensure this is enabled or you’ll lose access
-sudo ufw allow 22/tcp
-
-# Reload firewall
-sudo ufw reload
-
-# Check firewall status
-sudo ufw status
-```
-
----
-
-## 📦 3. Clone and Setup Wagtail Project
-
-```bash
-# Create apps folder
-mkdir -p ~/webapps
-cd ~/webapps
-
-# Clone your project
-sudo git clone https://github.com/kelvinmaringire/buybuddy-api.git
-cd buybuddy-api
-
-# Add environment variables
-nano .env   # (paste your environment variables here)
-
-# Make entrypoint executable
-chmod +x entrypoint.sh
-
-# Start services
-docker compose up -d
-```
-
----
-
-## 🦄 4. Wagtail Project Commands
-
-```bash
-# Start a new Wagtail project
 docker compose run web wagtail start ruzivoflow .
 
-# Apply all Django/Wagtail migrations
 docker compose run web python manage.py migrate
 
-# Create admin user
 docker compose run web python manage.py createsuperuser
-
-# Collect static files for production
-docker compose run web python manage.py collectstatic --noinput
-```
 
 docker compose exec web pip freeze > requirements.txt 
 
----
+######################################
+VPS start commands
+######################################
 
-## 🗄️ 5. PostgreSQL Backup & Restore
+sudo apt update
 
-### 🔹 Backup Database
+sudo apt upgrade -y
 
-```bash
+sudo apt install ufw -y
+
+sudo ufw enable
+
+sudo ufw allow 80/tcp && sudo ufw allow 8000/tcp && sudo ufw allow 443/tcp && sudo ufw allow 22/tcp && sudo ufw allow 6379/tcp
+
+sudo ufw reload
+
+sudo ufw status
+
+######################################
+Install Docker on VPS
+######################################
+
+sudo apt update && sudo apt install -y ca-certificates curl gnupg lsb-release
+
+sudo install -m 0755 -d /etc/apt/keyrings
+
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update
+
+sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+docker --version
+
+sudo usermod -aG docker $USER
+
+docker run hello-world
+
+######################################
+Clone and Setup Wagtail Project
+######################################
+
+mkdir -p ~/webapps
+
+cd ~/webapps
+
+sudo git clone https://github.com/kelvinmaringire/buybuddy-api.git
+
+cd buybuddy-api
+
+nano .env   # (paste your environment variables here)
+
+chmod +x entrypoint.sh
+
+docker compose up -d
+
+######################################
+PostgreSQL Backup & Restore
+######################################
+
 # Backup inside container
 docker compose exec db pg_dump -U postgres -d buybuddy_db -F c -f /var/lib/postgresql/data/data_backup.dump
 
 # Copy backup to local machine
 docker cp buybuddy_db:/var/lib/postgresql/data/data_backup.dump ./data_backup.dump
-```
 
 ### 🔹 Restore Database
 
-```bash
-# Copy backup back into container
-docker cp ./data_backup.dump db:/var/lib/postgresql/data/data_backup.dump
+docker cp ./data_backup.dump buybuddy_db:/tmp/data_backup.dump
 
-# Restore using pg_restore
-docker compose exec db pg_restore -U postgres -d buybuddy_db /var/lib/postgresql/data/data_backup.dump
-```
-
-# Enter the db container
 docker compose exec db bash
 
-# Drop the database
-psql -U postgres -c "DROP DATABASE ruzivoflow_db;"
+psql -U postgres -c "DROP DATABASE buybuddy_db;"
 
-# Recreate it
-psql -U postgres -c "CREATE DATABASE ruzivoflow_db;"
+psql -U postgres -c "CREATE DATABASE buybuddy_db;"
 
-# Restore the dump
-pg_restore -U postgres -d ruzivoflow_db /var/lib/postgresql/data/data_backup.dump
+pg_restore -U postgres -d buybuddy_db /tmp/data_backup.dump
 
+exit
 
----
+######################################
+SSL with Certbot (Docker)
+######################################
 
-## 🔒 6. SSL with Certbot (Docker)
+docker exec buybuddy_nginx mkdir -p /app/static/.well-known/acme-challenge
 
-### Create Volumes
+docker exec buybuddy_nginx sh -c 'echo "test" > /app/static/.well-known/acme-challenge/testfile'
 
-```bash
-docker volume create certbot-etc
-docker volume create certbot-var
-```
-docker compose run --rm certbot certonly --webroot --webroot-path /app/static -d buybuddysave.co.za
+docker exec buybuddy_certbot certbot certonly \
+    --webroot \
+    --webroot-path /app/static \
+    -d buybuddysave.co.za -d www.buybuddysave.co.za \
+    --email ringazm@gmail.com \
+    --agree-tos \
+    --non-interactive \
+    --no-eff-email
 
-### Update `docker-compose.yml`
+######################################
+Nginx buybuddy.conf
+######################################
 
-```yaml
-services:
-  certbot:
-    image: certbot/certbot
-    container_name: certbot
-    volumes:
-      - certbot-etc:/etc/letsencrypt
-      - certbot-var:/var/lib/letsencrypt
-      - ./nginx/conf.d:/etc/nginx/conf.d
-    entrypoint: "/bin/sh -c 'while :; do sleep 6h & wait $${!}; certbot renew; done'"
-    restart: unless-stopped
-```
-
-### Run Certbot (Webroot)
-
-```bash
-docker compose run --rm --entrypoint certbot certbot certonly \
-  --webroot --webroot-path /app/static -d databet.co.za
-
-# Test dry-run
-docker compose run --rm --entrypoint certbot certbot certonly \
-  --webroot --webroot-path /app/static -d databet.co.za --dry-run
-
-# Reload nginx after SSL issued
-docker compose exec nginx nginx -s reload
-```
-
----
-
-## 🌐 7. Nginx Config (HTTP → HTTPS)
-
-### `nginx/conf.d/databet.conf`
-
-```nginx
-# Redirect www.databet.co.za to databet.co.za
+# Redirect www.buybuddysave.co.za to buybuddysave.co.za
 server {
     listen 80;
-    server_name www.databet.co.za;
-    return 301 http://databet.co.za$request_uri;
+    server_name www.buybuddysave.co.za;
+    return 301 http://buybuddysave.co.za$request_uri;
 }
 
 # Main HTTP server (forces HTTPS)
 server {
     listen 80;
-    server_name databet.co.za;
+    server_name buybuddysave.co.za;
 
     location /.well-known/acme-challenge/ {
         alias /app/static/.well-known/acme-challenge/;
@@ -217,10 +148,10 @@ server {
 # HTTPS server
 server {
     listen 443 ssl;
-    server_name databet.co.za;
+    server_name buybuddysave.co.za;
 
-    ssl_certificate     /etc/letsencrypt/live/databet.co.za/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/databet.co.za/privkey.pem;
+    ssl_certificate     /etc/letsencrypt/live/buybuddysave.co.za/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/buybuddysave.co.za/privkey.pem;
 
     # security / performance tweaks (optional but recommended)
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -241,6 +172,20 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
+    
+        # Proxy WebSocket connections (Django Channels)
+    location /ws/ {
+        proxy_pass http://web:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 }
 
-```
+docker exec buybuddy_nginx nginx -t
+
+docker exec buybuddy_nginx nginx -s reload

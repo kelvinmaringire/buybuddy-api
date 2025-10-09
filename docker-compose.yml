@@ -46,6 +46,7 @@ services:
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d
       - buybuddy_static:/app/static
+      - buybuddy_media:/app/media   
       - buybuddy_certbot_etc:/etc/letsencrypt   # ✅ certs available to Nginx
       - buybuddy_certbot_var:/var/lib/letsencrypt
     depends_on:

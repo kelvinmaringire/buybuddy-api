@@ -2,7 +2,7 @@
 Start new project
 ######################################
 
-docker compose run web wagtail start ruzivoflow .
+docker compose run web wagtail start buybuddy .
 
 docker compose run web python manage.py migrate
 
@@ -99,8 +99,6 @@ SSL with Certbot (Docker)
 ######################################
 
 docker exec buybuddy_nginx mkdir -p /app/static/.well-known/acme-challenge
-
-docker exec buybuddy_nginx sh -c 'echo "test" > /app/static/.well-known/acme-challenge/testfile'
 
 docker exec buybuddy_certbot certbot certonly \
     --webroot \
